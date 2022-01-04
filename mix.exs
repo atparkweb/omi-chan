@@ -21,6 +21,7 @@ defmodule OmiChan.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:dotenv, "~> 3.1"},
       {:httpoison, "~> 1.8"},
       {:poison, "~> 5.0"}
       # {:dep_from_hexpm, "~> 0.3.0"},
