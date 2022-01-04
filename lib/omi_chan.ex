@@ -4,15 +4,15 @@ defmodule OmiChan do
   """
 
   @doc """
-  Hello world.
+  Entry point for the server.
 
   ## Examples
 
-      iex> OmiChan.hello()
-      :world
+      iex> OmiChan.start()
+      :hello
 
   """
-  def hello do
-    :world
+  def start do
+    {:ok, :hello}
   end
 end
