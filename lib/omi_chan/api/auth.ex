@@ -1,9 +1,9 @@
-defmodule OmiChan.Api.Auth do
+defmodule OmiChan.Auth do
   use GenServer
 
   @name :auth_server
 
-  alias OmiChan.Api.Bocco
+  alias OmiChan.Bocco
 
   defmodule AuthState do
     defstruct refresh_token: "",
@@ -18,14 +18,31 @@ defmodule OmiChan.Api.Auth do
 
   @impl true
   def init(state) do
-    tokens = get_tokens()
-    initial_state = %{ state | access_token: tokens.access_token, refresh_token: tokens.refresh_token }
-    # schedule refresh
-    {:ok, initial_state}
+    %{ "access_token" => access, "refresh_token" => refresh } = get_tokens()
+    initial_state = %{ state | access_token: access, refresh_token: refresh }
+    schedule_refresh(state.interval)
+    {:ok, state}
   end
 
-  def get_tokens do
-    response = Task.async(fn -> Bocco.refresh_token end)
+  def handle_info(:refresh, state) do
+    IO.puts "Refreshing token..."
+    %{ "access_token" => access, "refresh_token" => refresh } = get_tokens()
+    IO.puts "Access: #{access}, Refresh: #{refresh}"
+    new_state = %{ state | access_token: access, refresh_token: refresh }
+    schedule_refresh(state.interval)
+    {:noreply, new_state}
+  end
+  def handle_info(unexpected, state) do
+    IO.puts "Unexpected message! #{unexpected}"
+    {:noreply, state}
+  end
+
+  defp get_tokens do
+    Task.async(fn -> Bocco.refresh_token() end)
       |> Task.await
+  end
+
+  defp schedule_refresh(time_in_ms) do
+    Process.send_after(self(), :refresh, time_in_ms)
   end
 end
