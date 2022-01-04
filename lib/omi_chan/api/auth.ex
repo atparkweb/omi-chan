@@ -24,6 +24,12 @@ defmodule OmiChan.Auth do
     {:ok, state}
   end
 
+  @impl true
+  def handle_call(:get_token, _from, state) do
+    {:reply, state.refresh_token, state}
+  end
+
+  @impl true
   def handle_info(:refresh, state) do
     IO.puts "Refreshing token..."
     %{ "access_token" => access, "refresh_token" => refresh } = get_tokens()
@@ -40,6 +46,10 @@ defmodule OmiChan.Auth do
   defp get_tokens do
     Task.async(fn -> Bocco.refresh_token() end)
       |> Task.await
+  end
+
+  defp get_refresh_token do
+    GenServer.call @name, :get_refresh_token
   end
 
   defp schedule_refresh(time_in_ms) do
