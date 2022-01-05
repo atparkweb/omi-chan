@@ -7,17 +7,12 @@ defmodule OmiChan.Auth do
 
   defmodule AuthState do
     defstruct refresh_token: nil,
-      access_token: nil,
-      interval: nil
+      access_token: nil
   end
 
   def start do
     refresh = Dotenv.get("REFRESH_TOKEN")
-    {interval, _} = Integer.parse(Dotenv.get("REFRESH_INTERVAL", "3600000")) # default timeout, 60 minutes
-
-    if interval < :timer.minutes(1) do raise "Interval cannot be less than 1 minute" end
-
-    GenServer.start(__MODULE__, %AuthState{refresh_token: refresh, interval: interval}, name: @name)
+    GenServer.start(__MODULE__, %AuthState{refresh_token: refresh}, name: @name)
   end
 
   @impl true
@@ -38,9 +33,7 @@ defmodule OmiChan.Auth do
   def handle_info(:refresh, state) do
     IO.puts "Refreshing token..."
     %{ "access_token" => access, "refresh_token" => refresh } = refresh_tokens(state.refresh_token)
-    IO.puts "Access: #{access}, Refresh: #{refresh}"
     new_state = %{ state | access_token: access, refresh_token: refresh }
-    schedule_refresh(state.interval)
     {:noreply, new_state}
   end
   def handle_info(unexpected, state) do
@@ -53,10 +46,6 @@ defmodule OmiChan.Auth do
     |> Task.await
   end
 
-  defp schedule_refresh(time_in_ms) do
-    Process.send_after(self(), :refresh, time_in_ms)
-  end
-
 
   # Client interface
 
@@ -67,5 +56,4 @@ defmodule OmiChan.Auth do
   def get_access_token do
     GenServer.call @name, :get_access_token
   end
-
 end
