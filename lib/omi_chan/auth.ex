@@ -11,7 +11,6 @@ defmodule OmiChan.Auth do
       interval: nil
   end
 
-  @spec start :: :ignore | {:error, any} | {:ok, pid}
   def start do
     refresh = Dotenv.get("REFRESH_TOKEN")
     {interval, _} = Integer.parse(Dotenv.get("REFRESH_INTERVAL", "3600000")) # default timeout, 60 minutes
