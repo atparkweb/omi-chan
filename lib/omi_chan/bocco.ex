@@ -14,10 +14,17 @@ defmodule OmiChan.Bocco do
   end
 
   def send_message(room_id, message) do
-    token = Auth.get_access_token()
-    auth_header = %{ "Authorization" => "Bearer #{token}" }
-    {:ok, data} = post(get_message_uri(room_id), %{ text: message }, auth_header)
+    {:ok, data} = post(get_message_uri(room_id), %{ text: message }, %{}, [with_auth: true])
     data
+  end
+
+  defp add_auth_header(headers) do
+    token = Auth.get_access_token()
+    Map.merge(%{ "Authorization" => "Bearer #{token}" }, headers)
+  end
+
+  defp add_default_headers(headers) do
+    Map.merge(@default_headers, headers)
   end
 
   defp get_message_uri(room) do
@@ -25,10 +32,14 @@ defmodule OmiChan.Bocco do
   end
 
   defp post(uri, data, headers \\ %{}) do
-    result = HTTPoison.post(uri, Poison.encode!(data), Map.merge(@default_headers, headers))
+    headers = add_default_headers(headers)
+    result = HTTPoison.post(uri, Poison.encode!(data), headers)
     case result do
       {:ok, %{ body: body }} -> {:ok, Poison.decode!(body)}
       {:error, reason} -> raise IO.inspect reason
     end
+  end
+  defp post(uri, data, headers, [with_auth: true]) do
+    post(uri, data, add_auth_header(headers))
   end
 end
