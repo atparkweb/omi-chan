@@ -11,6 +11,7 @@ defmodule OmiChan.Auth do
   end
 
   def start do
+    oauth_init()
     refresh = Dotenv.get("REFRESH_TOKEN")
     GenServer.start(__MODULE__, %AuthState{refresh_token: refresh}, name: @name)
   end
@@ -41,13 +42,22 @@ defmodule OmiChan.Auth do
     {:noreply, state}
   end
 
-  defp refresh_tokens(token) do
+  def oauth_init do
+    token = get_refresh_token()
+    client = OAuth2.Client.new([
+      strategy: OAuth2.Strategy.Refresh,
+      client_id: Dotenv.get("CLIENT_ID"),
+      client_secret: Dotenv.get("CLIENT_SECRET"),
+      site: "https://platform-api.bocco.me",
+      params: %{"refresh_token" => token}
+    ])
+    OAuth2.Client.put_serializer(client, "application/json", Poison)
+  end
+
+  def refresh_tokens(token) do
     Task.async(fn -> Bocco.refresh_token(token) end)
     |> Task.await
   end
-
-
-  # Client interface
 
   def get_refresh_token do
     GenServer.call @name, :get_refresh_token
@@ -55,5 +65,9 @@ defmodule OmiChan.Auth do
 
   def get_access_token do
     GenServer.call @name, :get_access_token
+  end
+
+  def refresh do
+    GenServer.call @name, :refresh_tokens
   end
 end
