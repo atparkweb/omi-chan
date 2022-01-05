@@ -3,8 +3,6 @@ defmodule OmiChan.Auth do
 
   @name :auth_server
 
-  alias OmiChan.Bocco
-
   defmodule AuthState do
     defstruct refresh_token: nil,
       access_token: nil
@@ -33,9 +31,8 @@ defmodule OmiChan.Auth do
   @impl true
   def handle_info(:refresh, state) do
     IO.puts "Refreshing token..."
-    %{ "access_token" => access, "refresh_token" => refresh } = refresh_tokens(state.refresh_token)
-    new_state = %{ state | access_token: access, refresh_token: refresh }
-    {:noreply, new_state}
+    refresh_tokens(state.client)
+    {:noreply, state}
   end
   def handle_info(unexpected, state) do
     IO.puts "Unexpected message! #{unexpected}"
@@ -48,15 +45,15 @@ defmodule OmiChan.Auth do
       strategy: OAuth2.Strategy.Refresh,
       client_id: Dotenv.get("CLIENT_ID"),
       client_secret: Dotenv.get("CLIENT_SECRET"),
-      site: "https://platform-api.bocco.me",
+      site: "https://platform-api.bocco.me/oauth/token/refresh",
       params: %{"refresh_token" => token}
     ])
     OAuth2.Client.put_serializer(client, "application/json", Poison)
+    client
   end
 
-  def refresh_tokens(token) do
-    Task.async(fn -> Bocco.refresh_token(token) end)
-    |> Task.await
+  def refresh_tokens(client) do
+    OAuth2.Client.get_token!(client)
   end
 
   def get_refresh_token do
