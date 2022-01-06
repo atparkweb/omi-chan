@@ -5,19 +5,25 @@ defmodule OmiChan.Bocco do
   alias OmiChan.Auth
 
   def refresh_token(token) do
-    HttpClient.post(get_refresh_uri(), %{ refresh_token: token })
+    HttpClient.post(get_uri(:refresh), %{ refresh_token: token })
   end
 
-  defp get_refresh_uri do
+  def send_message(_room, message) do
+    # temp test
+    room = Dotenv.get("ROOM_ID")
+
+    HttpClient.post(get_uri(:message, room), %{ text: message }, get_auth_header())
+  end
+
+  defp get_auth_header do
+    token = Auth.get_access_token()
+    %{ "Authorization" => "Bearer #{token}" }
+  end
+
+  defp get_uri(:refresh) do
     "#{@base}/oauth/token/refresh"
   end
-
-  def send_message(room_id, message) do
-    token = Auth.get_refresh_token()
-    HttpClient.post(get_message_uri(room_id), %{ text: message }, %{ refresh_token: token })
-  end
-
-  defp get_message_uri(room) do
-    "#{@base}/v1/rooms/#{room}/messages/text"
+  defp get_uri(:message, room_id) do
+    "#{@base}/v1/rooms/#{room_id}/messages/text"
   end
 end

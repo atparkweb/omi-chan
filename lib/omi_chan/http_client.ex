@@ -1,16 +1,21 @@
 defmodule OmiChan.HttpClient do
   @default_headers %{"Content-Type" => "application/json"}
 
-  def add_default_headers(headers) do
+  def post(uri, data, headers \\ %{}) do
+    HTTPoison.post(uri, Poison.encode!(data), add_default_headers(headers))
+    |> handle_response
+  end
+
+  defp add_default_headers(headers) do
     Map.merge(@default_headers, headers)
   end
 
-  def post(uri, data, headers \\ %{}) do
-    headers = add_default_headers(headers)
-    result = HTTPoison.post(uri, Poison.encode!(data), headers)
-    case result do
-      {:ok, %{ body: body }} -> {:ok, Poison.decode!(body)}
-      {:error, reason} -> raise IO.inspect reason
-    end
+  defp handle_response({:ok, response}) do
+    %{ body: body } = response
+    Poison.decode!(body)
+  end
+  defp handle_response({:error, reason}) do
+    IO.puts "ERROR: HTTP response. #{inspect reason}"
+    %{}
   end
 end
