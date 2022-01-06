@@ -3,41 +3,68 @@ defmodule OmiChan.Auth do
 
   @name :auth_server
 
+  alias OmiChan.Bocco
+
   defmodule AuthState do
-    defstruct oauth2_client: nil
+    defstruct refresh_token: nil,
+      access_token: nil,
+      interval: nil
   end
 
   def start do
-    GenServer.start(__MODULE__, %AuthState{}, name: @name)
+    refresh = Dotenv.get("REFRESH_TOKEN")
+    {interval, _} = Integer.parse(Dotenv.get("REFRESH_INTERVAL", "3600000")) # default timeout, 60 minutes
+
+    if interval < :timer.minutes(1) do raise "Interval cannot be less than 1 minute" end
+
+    GenServer.start(__MODULE__, %AuthState{refresh_token: refresh, interval: interval}, name: @name)
   end
 
   @impl true
   def init(state) do
-    client = init_oauth_client()
-    initial_state = %{ state | oauth2_client: client}
-    {:ok, initial_state}
+    Process.send(self(), :refresh, [])
+    {:ok, state}
   end
 
   @impl true
-  def handle_call(:get_oauth_client, _from, state) do
-    {:reply, state.oauth2_client, state}
+  def handle_call(:get_refresh_token, _from, state) do
+    {:reply, state.refresh_token, state}
+  end
+  def handle_call(:get_access_token, _from, state) do
+    {:reply, state.access_token, state}
   end
 
-  def init_oauth_client do
-    client = OAuth2.Client.new([
-      strategy: OAuth2.Strategy.Refresh,
-      client_id: Dotenv.get("CLIENT_ID"),
-      client_secret: Dotenv.get("CLIENT_SECRET"),
-      site: "https://platform-api.bocco.me",
-      params: %{"refresh_token" => Dotenv.get("REFRESH_TOKEN")}
-    ])
-
-    OAuth2.Client.put_serializer(client, "application/json", Poison)
-
-    client
+  @impl true
+  def handle_info(:refresh, state) do
+    IO.puts "Refreshing token..."
+    %{ "access_token" => access, "refresh_token" => refresh } = refresh_tokens(state.refresh_token)
+    IO.puts "Access: #{access}, Refresh: #{refresh}"
+    new_state = %{ state | access_token: access, refresh_token: refresh }
+    schedule_refresh(state.interval)
+    {:noreply, new_state}
+  end
+  def handle_info(unexpected, state) do
+    IO.puts "Unexpected message! #{unexpected}"
+    {:noreply, state}
   end
 
-  def get_oath_client do
-    GenServer.call @name, :get_oauth_client
+  defp refresh_tokens(token) do
+    Task.async(fn -> Bocco.refresh_token(token) end)
+    |> Task.await
+  end
+
+  defp schedule_refresh(time_in_ms) do
+    Process.send_after(self(), :refresh, time_in_ms)
+  end
+
+
+  # Client interface
+
+  def get_refresh_token do
+    GenServer.call @name, :get_refresh_token
+  end
+
+  def get_access_token do
+    GenServer.call @name, :get_access_token
   end
 end
