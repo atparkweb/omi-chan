@@ -6,7 +6,8 @@ defmodule OmiChan.Bocco do
 
   def send_message(_room, message) do
     client = Auth.get_oath_client()
-    OAuth2.Client.post!(client, get_uri(:message, "560d9376-d53e-45c0-9cf2-977f0340c2a6"), %{ text: message }, @default_headers)
+    room = Dotenv.get("ROOM_ID")
+    OAuth2.Client.post!(client, get_uri(:message, room), %{ text: message }, @default_headers)
     |> handle_response
   end
 
