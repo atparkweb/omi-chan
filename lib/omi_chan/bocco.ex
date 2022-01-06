@@ -1,28 +1,23 @@
 defmodule OmiChan.Bocco do
   @base "https://platform-api.bocco.me"
+  @default_headers [{"Content-Type", "application/json"}]
 
-  alias OmiChan.HttpClient
   alias OmiChan.Auth
 
-  def refresh_token(token) do
-    HttpClient.post(get_uri(:refresh), %{ refresh_token: token })
-  end
-
   def send_message(_room, message) do
-    # temp test
-    room = Dotenv.get("ROOM_ID")
-
-    HttpClient.post(get_uri(:message, room), %{ text: message }, get_auth_header())
+    client = Auth.get_oath_client()
+    OAuth2.Client.post!(client, get_uri(:message, "560d9376-d53e-45c0-9cf2-977f0340c2a6"), %{ text: message }, @default_headers)
+    |> handle_response
   end
 
-  defp get_auth_header do
-    token = Auth.get_access_token()
-    %{ "Authorization" => "Bearer #{token}" }
+  defp handle_response(%{ status_code: 200, body: body}) do
+    body
+  end
+  defp handle_response(error) do
+    IO.puts "ERROR: HTTP response. #{inspect error}"
+    %{}
   end
 
-  defp get_uri(:refresh) do
-    "#{@base}/oauth/token/refresh"
-  end
   defp get_uri(:message, room_id) do
     "#{@base}/v1/rooms/#{room_id}/messages/text"
   end
